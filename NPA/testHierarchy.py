@@ -4,8 +4,9 @@ import unittest
 import sys, os
 import numpy as np
 
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from NPA.NPAgame import NPAgame
+from game import Game
 from NPA.hierarchy import Hierarchy
 from NPA.operator import Operator
 from NPA.canonicalOp import *
@@ -45,7 +46,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         Sgame = NPAghz.create_operators()
         self.assertEqual(Sgame, P3)     
 
@@ -56,7 +57,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         operators = NPAghz.create_operators()
         sdp = Hierarchy(NPAghz, operators)
         matrix = sdp.projectorConstraints()
@@ -73,7 +74,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         operators = NPAghz.create_operators()
         sdp = Hierarchy(NPAghz, operators)
 
@@ -113,8 +114,8 @@ class Test(unittest.TestCase):
         func_utility = lambda out_tuple, in_tuple: int(in_tuple[0] & in_tuple[1] == out_tuple[0] ^ out_tuple[1])
         func_in_prior = lambda in_tuple: 1/4
 
-        NPAchsh = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
-        upperBound = NPAchsh.optimize(level=2, Nash=False, verbose=True, warmStart=False, solver="SCS")
+        NPAchsh = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        upperBound = NPAchsh.compute_NPA(level=2, Nash=False, verbose=True, warmStart=False, solver="SCS")
         self.assertAlmostEqual(upperBound, np.cos(np.pi/8)**2, delta=1e-5)
 
     def testCHSH_Modif(self):
@@ -125,8 +126,8 @@ class Test(unittest.TestCase):
         dict_in_prior = {(0,0): 0.1, (0,1): 0.2, (1,0): 0.3, (1,1): 0.4}
         func_in_prior = lambda in_tuple: dict_in_prior[in_tuple] if in_tuple in dict_in_prior else 0
 
-        NPAchsh = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
-        upperBound = NPAchsh.optimize(level=2, Nash=False, verbose=True, warmStart=False, solver="SCS")
+        NPAchsh = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        upperBound = NPAchsh.compute_NPA(level=2, Nash=False, verbose=True, warmStart=False, solver="SCS")
         self.assertAlmostEqual(upperBound, 0.9005, delta=1e-4)
 
     def testGHZ(self):
@@ -135,8 +136,8 @@ class Test(unittest.TestCase):
         list_num_out = [2,2,2]
         func_utility = lambda out_tuple, in_tuple: int(in_tuple[0] | in_tuple[1] | in_tuple[2] == out_tuple[0] ^ out_tuple[1] ^ out_tuple[2])
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
-        upperBound = NPAghz.optimize(level=2, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        upperBound = NPAghz.compute_NPA(level=2, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
         self.assertAlmostEqual(upperBound, 1, delta=1e-4)
 
     def testCanonicalForm_3_output(self):
@@ -172,7 +173,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         Sgame = NPAghz.create_operators()
         self.assertEqual(Sgame, P3)     
 
@@ -183,7 +184,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         operators = NPAghz.create_operators()
         sdp = Hierarchy(NPAghz, operators)
         matrix = sdp.projectorConstraints()
@@ -201,7 +202,7 @@ class Test(unittest.TestCase):
         func_in_prior = lambda in_tuple: 1/4 if in_tuple[0] ^ in_tuple[1] ^ in_tuple[2] == 0 else 0
         num_players = 3
 
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        NPAghz = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         operators = NPAghz.create_operators()
         sdp = Hierarchy(NPAghz, operators)
 
@@ -295,33 +296,9 @@ class Test(unittest.TestCase):
                 
         func_in_prior = lambda in_tuple: 1
 
-        NPAchsh = NPAgame(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
-        upperBound, X = NPAchsh.optimize(level=3, getVariable=True, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
+        NPAchsh = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        upperBound, X = NPAchsh.compute_NPA(level=3, getVariable=True, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
         self.assertAlmostEqual(upperBound, 2.9149, delta=1e-4)
-
-    def testCHSHCorrelators(self):
-        num_players = 2
-        list_num_in = [2,2]
-        list_num_out = [2,2]
-        correlators = {"xy": np.array([[1, 1], [1, -1]])}
-
-        NPAchsh = NPAgame(num_players, list_num_in, list_num_out, correlators=correlators)
-        upperBound = NPAchsh.optimize(level=2, Nash=False, verbose=True, warmStart=False, solver="SCS")
-        self.assertAlmostEqual(upperBound, 2*np.sqrt(2), delta=1e-5)
-
-    def testGHZCorrelators(self):
-        num_players = 3
-        list_num_in = [2,2,2]
-        list_num_out = [2,2,2]
-        correlators={"xyz": np.array([[[1, 0], 
-                          [0, -1]],
-                         [[0, -1], 
-                          [-1, 0]]])
-        }
-
-        NPAghz = NPAgame(num_players, list_num_in, list_num_out, correlators=correlators)
-        upperBound = NPAghz.optimize(level=2, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
-        self.assertAlmostEqual(upperBound, 4, delta=1e-5)
 
 if __name__ == "__main__":
     unittest.main()

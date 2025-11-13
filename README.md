@@ -17,7 +17,6 @@ This repository implements optimization tools for analyzing quantum advantages i
 ```
 .
 ├── NPA/                         # NPA hierarchy implementation
-│   ├── NPAgame.py               # Nonlocal game definition
 │   ├── hierarchy.py             # SDP hierarchy for quantum bounds
 │   ├── operator.py              # Measurement operator representation
 │   └── canonicalOp.py           # Canonical monomial ordering
@@ -30,7 +29,7 @@ This repository implements optimization tools for analyzing quantum advantages i
 │   └── data/                    # Storage for optimized strategies
 │
 ├── latency_plot.py              # Simulation and latency plot (Table 4 and Fig. 13)
-├── cdnp.py                      # Classical deterministic strategies
+├── game.py                      # Definition of nonlocal games, and computation of classical value
 ├── random_XOR_game.py           # Random XOR game example (Table 2)
 └── extended_XOR_games.py        # Extended XOR games analysis (Sec. 4.2.2, Table 6)
 ```

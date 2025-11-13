@@ -1,11 +1,9 @@
-from NPA.NPAgame import NPAgame
 from LC_seesaw.seesaw import Seesaw
 import networkx as nx
 import numpy as np
 import pandas as pd 
 import dill
-from cdnp import cdnp
-
+from game import Game
 
 def binatodeci(binary):
     '''
@@ -41,7 +39,7 @@ def extended_XOR_game(f, nb_x, nb_y, nb_z, dim_state, dim_message):
     # Uniform distribution over inputs
     func_in_prior = lambda in_tuple: 1/(nb_x*nb_y*nb_z)
 
-    extended_xor_game = NPAgame(3, [nb_x, nb_y, nb_z], [2, 2, 2], 3 * [extended_xor], func_in_prior)
+    extended_xor_game = Game(3, [nb_x, nb_y, nb_z], [2, 2, 2], 3 * [extended_xor], func_in_prior)
 
     seesaw = Seesaw(extended_xor_game, dim_state, dim_message, network)
 
@@ -73,12 +71,11 @@ if __name__ == "__main__":
         extended_xor = lambda out_tuple, in_tuple: xor(out_tuple, in_tuple) * is_eq(out_tuple, in_tuple)
 
         # NPA upper bound for foward strategies, party 0 and party 1 communicate their inputs.
-        NPAxor = NPAgame(3, [nb_x*nb_y, nb_x*nb_y, nb_z], [2,2,2], [extended_xor]*3, lambda in_tuple: int(in_tuple[0] == in_tuple[1])/(nb_x*nb_y*nb_z))
-        upperBound = NPAxor.optimize(level=2, Nash=False, verbose=False, warmStart=False, solver="MOSEK")
+        XORgame = Game(3, [nb_x*nb_y, nb_x*nb_y, nb_z], [2,2,2], [extended_xor]*3, lambda in_tuple: int(in_tuple[0] == in_tuple[1])/(nb_x*nb_y*nb_z))
+        upperBound = XORgame.compute_NPA(level=2, Nash=False, verbose=False, warmStart=False, solver="MOSEK")
 
-        classical = cdnp(3, [nb_x, nb_y, nb_z], [2, 2, 2], extended_xor, lambda in_tuple: 1/(nb_y*nb_z))
-        c_value = classical.opt_classical()[0]
-        classical_one_way = cdnp(3, [nb_x*nb_y, nb_x*nb_y, nb_z], [2, 2, 2], extended_xor, lambda in_tuple: int(in_tuple[0] == in_tuple[1])/(nb_x*nb_y*nb_z))        
+        c_value = XORgame.opt_classical()[0]
+        classical_one_way = XORgame.reduce_to_foward(0, 1)
         c_one_way_value = classical_one_way.opt_classical()[0]
 
         qsw = 0
@@ -115,7 +112,7 @@ if __name__ == "__main__":
     print(f"Number of separations found: {gap} out of {len(results)} or {total_with_sep} with classical/quantum sep")
 
     df = pd.DataFrame(results).sort_values('function')
-    df.to_csv('extended_xor_n3m3_qubitcomm_2.csv', index=False)
+    #df.to_csv('extended_xor_n3m3_qubitcomm_2.csv', index=False)
 
     latex_table = df.to_latex(index=False, 
                            float_format="%.3e",

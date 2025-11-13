@@ -1,5 +1,5 @@
 from itertools import groupby
-from NPA.Operator import Operator
+from NPA.operator import Operator
 
 class Monomial:
     def __init__(self, operators):

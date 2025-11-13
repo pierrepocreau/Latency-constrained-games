@@ -1,12 +1,11 @@
-from NPA.NPAgame import NPAgame
 from LC_seesaw.seesaw import Seesaw
+from game import Game
 import networkx as nx
 import numpy as np
-import dill
-from cdnp import cdnp
 import warnings
 from itertools import product
 import matplotlib.pyplot as plt
+
 
 warnings.filterwarnings('ignore', message='Objective contains too many subexpressions')
 warnings.filterwarnings('ignore', message='Constraint .* contains too many subexpressions')
@@ -253,8 +252,7 @@ def run_communication_analysis(num_players, list_num_in, list_num_out, correlato
     func_in_prior = lambda in_tuple: 1/8
 
     # Initialize games
-    game = NPAgame(num_players, list_num_in, list_num_out, funcs_utility_player=[funcs_utility_player]*3, func_in_prior=func_in_prior)
-    cdnpGame = cdnp(num_players, list_num_in, list_num_out, func_utility=funcs_utility_player, func_in_prior=func_in_prior)
+    game = Game(num_players, list_num_in, list_num_out, funcs_utility_player=[funcs_utility_player]*3, func_in_prior=func_in_prior)
     
     # Algebraic bounds
     algebraic = np.sum(np.abs(correlators["xyz"]))
@@ -270,9 +268,9 @@ def run_communication_analysis(num_players, list_num_in, list_num_out, correlato
     seesaw = Seesaw(game, [2, 2, 2], 1, network)
     no_comm_quantum_lb, no_comm_strategy = seesaw.run_optimization_multiple_starts(
         num_random_starts=num_random_starts_no_comm, verbose=False)
-    no_comm_quantum_ub = game.optimize(level=3, Nash=False, verbose=False, 
+    no_comm_quantum_ub = game.compute_NPA(level=2, Nash=False, verbose=False, 
                                        warmStart=False, solver="MOSEK")
-    no_comm_classical = cdnpGame.opt_classical()[0]
+    no_comm_classical = game.opt_classical()[0]
 
     # Quantum forwarding v1 -> v2  v3
     game_fwd_01 = game.reduce_to_foward(0,1)
@@ -283,11 +281,10 @@ def run_communication_analysis(num_players, list_num_in, list_num_out, correlato
     seesaw = Seesaw(game_fwd_01, [2, 2, 2], 1, network)
     fwd_quantum, fwd_quantum_strategy = seesaw.run_optimization_multiple_starts(
         num_random_starts=num_random_starts_one_round, verbose=False)
-    fwd_quantum_up = game_fwd_01.optimize(level=2, verbose=False)
+    fwd_quantum_up = game_fwd_01.compute_NPA(level=2, verbose=False)
 
     # One round: v1 -> v2  v3
-    cdnpGame_fwd_01 = cdnpGame.reduce_to_foward(0, 1)
-    one_round_classical = cdnpGame_fwd_01.opt_classical()[0]
+    one_round_classical = game_fwd_01.opt_classical()[0]
     
     network = nx.Graph()
     network.add_edge(0, 1)
@@ -305,7 +302,7 @@ def run_communication_analysis(num_players, list_num_in, list_num_out, correlato
     seesaw = Seesaw(game_merge_01, [2, 2], 1, network_merged)
     merge_quantum, merge_strategy = seesaw.run_optimization_multiple_starts(
         num_random_starts=num_random_starts_merge, verbose=False)
-    merge_quantum_ub = game_merge_01.optimize(level=2, Nash=False, verbose=False,
+    merge_quantum_ub = game_merge_01.compute_NPA(level=2, Nash=False, verbose=False,
                                               warmStart=False, solver="MOSEK")
     
     return {
