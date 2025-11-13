@@ -1,6 +1,6 @@
 from NPA.hierarchy import Hierarchy
 import itertools as it
-from NPA.Operator import Operator
+from NPA.operator import Operator
 from typing import Optional, Callable
 import numpy as np
 
