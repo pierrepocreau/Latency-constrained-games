@@ -3,7 +3,7 @@ import numpy as np
 
 from NPA.canonicalOp import Monomial
 import itertools
-from NPA.Operator import Operator
+from NPA.operator import Operator
 
 def reduce_monomial_list(monomialList):
     monomialList = list(filter(lambda x: x.isNull() == False, monomialList))
