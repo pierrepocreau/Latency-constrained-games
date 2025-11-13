@@ -7,7 +7,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from NPA.NPAgame import NPAgame
 from NPA.hierarchy import Hierarchy
-from NPA.Operator import Operator
+from NPA.operator import Operator
 from NPA.canonicalOp import *
 class Test(unittest.TestCase):
 
