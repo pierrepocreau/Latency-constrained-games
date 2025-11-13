@@ -1,5 +1,5 @@
 from NPA.NPAgame import NPAgame
-from NetworkSeesaw.seesaw import Seesaw
+from LC_seesaw.seesaw import Seesaw
 import networkx as nx
 import numpy as np
 import dill
