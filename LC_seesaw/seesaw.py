@@ -5,7 +5,7 @@ import itertools
 from copy import deepcopy
 import networkx as nx
 import sys, os
-from QuantumStrategy import QuantumStrategy, link_product
+from quantumStrategy import QuantumStrategy, link_product
 from QCFO import QCFO
 from cvxpy import Variable, Expression
 import dill
