@@ -12,7 +12,7 @@ import dill
 import pathlib
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from NPA.NPAgame import NPAgame
+from game import Game
 
 class Seesaw:
     """
@@ -26,12 +26,12 @@ class Seesaw:
     Note that only real (not complex) strategies are implemented for efficiency.
     """
     
-    def __init__(self, game: NPAgame, dim_state: list[int], dim_message: int, network: nx.Graph):
+    def __init__(self, game: Game, dim_state: list[int], dim_message: int, network: nx.Graph):
         """
         Initialize seesaw optimizer.
         
         Args:
-            game: NPAgame object defining payoffs and input/output distributions
+            game: Game object defining payoffs and input/output distributions
             dim_state: List of shared state dimensions for each party
             dim_message: Dimension of quantum messages exchanged between parties
             network: Communication network topology
@@ -314,7 +314,7 @@ if __name__ == "__main__":
         """Simple CHSH optimization """
 
         chsh_term = lambda out_tuple, in_tuple: int(in_tuple[1] & in_tuple[2] == (out_tuple[1] ^ out_tuple[2]))
-        chsh_game = NPAgame(3, [2, 2, 2], [2, 2, 2], 3 * [chsh_term], lambda in_tuple: 1/8)
+        chsh_game = Game(3, [2, 2, 2], [2, 2, 2], 3 * [chsh_term], lambda in_tuple: 1/8)
 
         network = nx.Graph()
         network.add_edge(0, 1)
@@ -355,7 +355,7 @@ if __name__ == "__main__":
         network.add_edge(0, 1)
         network.add_node(2)    
 
-        extended_chsh_game = NPAgame(3, [2, 2, 2], [2, 2, 2], 3 * [extended_chsh], lambda in_tuple: 1/8)
+        extended_chsh_game = Game(3, [2, 2, 2], [2, 2, 2], 3 * [extended_chsh], lambda in_tuple: 1/8)
         seesaw = Seesaw(extended_chsh_game, [1, 2, 2], 2, network)
         
         nb_sucess = 0
@@ -390,7 +390,7 @@ if __name__ == "__main__":
         network.add_edge(0, 1)
         network.add_node(2)    
 
-        distributed_chsh_game = NPAgame(3, [2, 2, 2], [2, 2, 2], 3 * [distributed_chsh], lambda in_tuple: 1/8)
+        distributed_chsh_game = Game(3, [2, 2, 2], [2, 2, 2], 3 * [distributed_chsh], lambda in_tuple: 1/8)
         seesaw = Seesaw(distributed_chsh_game, [4, 4, 2], 4, network)
         
         nb_sucess = 0
@@ -430,7 +430,7 @@ if __name__ == "__main__":
         network.add_edge(0, 1)
         network.add_node(2)    
 
-        fully_distributed_chsh_game = NPAgame(3, [2, 2, 2], [2, 2, 2], 3 * [fully_distributed_chsh], lambda in_tuple: 1/8)
+        fully_distributed_chsh_game = Game(3, [2, 2, 2], [2, 2, 2], 3 * [fully_distributed_chsh], lambda in_tuple: 1/8)
         seesaw = Seesaw(fully_distributed_chsh_game, [4, 4, 2], 3, network)
         
         nb_sucess = 0

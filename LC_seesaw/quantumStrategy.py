@@ -11,7 +11,7 @@ from copy import deepcopy
 from toqito.rand import random_density_matrix
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from NPA.NPAgame import NPAgame
+from game import Game
 
 def link_product(A, B, sys_A, sys_B, dims):
     """
@@ -345,12 +345,12 @@ class QuantumStrategy:
         matrix, spaces = link_product(matrix, self.shared_state, spaces, state_spaces, self.global_dims)
         return matrix[0][0].real        
     
-    def compute_qsw(self, game: NPAgame) -> float:
+    def compute_qsw(self, game: Game) -> float:
         """
         Compute quantum social welfare (expected payoff) for a given game.
         
         Args:
-            game: NPAgame object defining the cooperative task
+            game: Game object defining the cooperative task
             
         Returns:
             float: Expected total payoff (quantum social welfare)
@@ -429,6 +429,6 @@ if __name__ == "__main__":
     func_utility = lambda out_tuple, in_tuple: int(in_tuple[0] & in_tuple[1] == out_tuple[0] ^ out_tuple[1])
     func_in_prior = lambda in_tuple: 1/4
     
-    chsh_game = NPAgame(2, [2, 2], [2, 2], [func_utility] * 2, func_in_prior)
+    chsh_game = Game(2, [2, 2], [2, 2], [func_utility] * 2, func_in_prior)
     qsw = strat.compute_qsw(chsh_game)
     print(f"QSW CHSH: {qsw:.6f}")
