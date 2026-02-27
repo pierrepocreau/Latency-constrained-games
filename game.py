@@ -2,7 +2,10 @@ from NPA.hierarchy import Hierarchy
 import itertools as it
 from NPA.operator import Operator
 from typing import Optional, Callable
+import networkx as nx
 import numpy as np
+import cvxpy as cv
+import copy
 
 class Game:
     def __init__(self, num_players: int, list_num_in: list[int], list_num_out: list[int], funcs_utility_player:Optional[list[Callable]]=None, func_in_prior:Optional[Callable] = None, correlators:Optional[dict] = None, perturbation:Optional[dict] = None, merged:Optional[bool]=None, input_sharing:Optional[tuple]=None, scale: Optional[float] = None):
@@ -45,6 +48,10 @@ class Game:
     def validAnswerIt(self, question):
         for answer in it.product(*[list(range(self.list_num_out[i])) for i in range(self.nbPlayers)]):
             if self.validAnswer(answer, question):
+                yield answer
+    
+    def AnswerIt(self):
+        for answer in it.product(*[list(range(self.list_num_out[i])) for i in range(self.nbPlayers)]):            
                 yield answer
 
     def involvedPlayers(self,question):
@@ -108,7 +115,7 @@ class Game:
             
             return self.funcs_utility_player[0](tuple(out_), tuple(in_))
     
-        func_in_prior = lambda out_tuple: 1/8
+        func_in_prior = lambda in_tuple: 1/8
 
         return Game(
             num_players=2,
@@ -162,7 +169,41 @@ class Game:
             list_num_out=self.list_num_out,
             funcs_utility_player=[utility_func]*3,
             func_in_prior=func_in_prior
-        )            
+        )   
+
+    def line_forward(self):
+        """
+        Forwarding strategies for v_0 <-> v_1 <-> v_2, binary inputs.
+        Player 1's input is (y, yx, yz) with yx forwarded from 0, yz forwarded from 2.
+        """
+
+        def decode_2(x):
+            return (x % 2, x // 2)
+
+        def decode_3(x):
+            return (x % 2, (x // 2) % 2, x // 4)
+
+        new_list_num_in = [4, 8, 4]
+
+        def utility_func(out_tuple, in_tuple):
+            x, xy = decode_2(in_tuple[0])
+            y, yx, yz = decode_3(in_tuple[1])
+            z, zy = decode_2(in_tuple[2])
+            return self.funcs_utility_player[0](out_tuple, (x, y, z))
+
+        def func_in_prior(in_tuple):
+            x, xy = decode_2(in_tuple[0])
+            y, yx, yz = decode_3(in_tuple[1])
+            z, zy = decode_2(in_tuple[2])
+            return ((xy == y) & (yx == x) & (yz == z) & (zy == y)) / 8
+
+        return Game(
+            num_players=3,
+            list_num_in=new_list_num_in,
+            list_num_out=self.list_num_out,
+            funcs_utility_player=[utility_func] * 3,
+            func_in_prior=func_in_prior
+        )
     
     def compute_NPA(self, level=1, getVariable=False, Nash=False, verbose=False, warmStart=False, solver="MOSEK"):
         '''
@@ -199,6 +240,91 @@ class Game:
                     player_ops.append(Operator(p, q, a))
             operators.append(player_ops)
         return operators    
+    
+    """ Computation G-signaling value """
+
+    def g_signaling(self, graph: nx.Graph):
+        """ Compute the G-signaling value for a given graph """
+        probs = cv.Variable((np.prod(self.list_num_out), np.prod(self.list_num_in)))
+        
+        constraints = []
+        dict_access = {}
+        for i, q in enumerate(self.questions()):                    
+            sum_answers = 0
+            for j, a in enumerate(self.AnswerIt()):        
+                dict_access[(tuple(a), tuple(q))] = probs[j, i]
+                sum_answers += probs[j, i]
+
+                # Constraints for valid probabilities
+                constraints.append(probs[j, i] >= 0)
+                constraints.append(probs[j, i] <= 1)
+            constraints.append(sum_answers == 1)
+        
+        for i in range(self.nbPlayers):
+            out_neighbors = list(graph.neighbors(i)) + [i]
+            non_out_neighbors = [k for k in range(self.nbPlayers) if k not in out_neighbors]
+            
+            if len(non_out_neighbors) == 0:
+                continue 
+
+            # For each fixed question to all parties except i
+            for q_others_vals in it.product(*[range(self.list_num_in[k]) for k in range(self.nbPlayers) if k != i]):
+                question_base = [None] * self.nbPlayers
+                idx = 0
+                for k in range(self.nbPlayers):
+                    if k != i:
+                        question_base[k] = q_others_vals[idx]
+                        idx += 1
+                
+                # Build all questions varying only s_i
+                questions_i = []
+                for q_i in range(self.list_num_in[i]):
+                    q_ = question_base[:]
+                    q_[i] = q_i
+                    questions_i.append(tuple(q_))
+                
+                # Filter to only questions with non-zero prior
+                valid_questions = [(k, q) for k, q in enumerate(questions_i) if self.func_in_prior(q) > 0]
+                
+                if len(valid_questions) < 2:
+                    continue
+                
+                # For each fixed output config of non-out-neighbors
+                for a_non_out in it.product(*[range(self.list_num_out[k]) for k in non_out_neighbors]):
+                    values = {}
+                    # Sum over outputs of out-neighbors
+                    for a_out in it.product(*[range(self.list_num_out[k]) for k in out_neighbors]):
+                        answer = [None] * self.nbPlayers
+                        
+                        for idx, k in enumerate(non_out_neighbors):
+                            answer[k] = a_non_out[idx]
+                        
+                        for idx, k in enumerate(out_neighbors):
+                            answer[k] = a_out[idx]
+                        
+                        answer_tuple = tuple(answer)
+                        
+                        # Accumulate for each valid question
+                        for k, q in valid_questions:
+                            if k not in values:
+                                values[k] = 0
+                            values[k] += dict_access[(answer_tuple, q)]
+                    
+                    # All marginals must be equal
+                    first_key = valid_questions[0][0]
+                    for k, q in valid_questions[1:]:
+                        constraints.append(values[k] == values[first_key])
+        
+        obj = 0
+        for question in self.questions():
+            for answer in self.validAnswerIt(question):
+                obj += self.func_in_prior(question) * self.answerPayoutWin(answer, question) * dict_access[(tuple(answer), tuple(question))]
+        
+        problem = cv.Problem(cv.Maximize(obj), constraints)
+        problem.solve(solver='MOSEK', verbose=False)
+                
+        return obj.value
+    
     
     """ Computation of best classical solution """
 
