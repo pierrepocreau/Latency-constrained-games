@@ -11,19 +11,6 @@ def reduce_monomial_list(monomialList):
     monomialList.sort()    
     return monomialList
 
-def all_compatible(ops):
-    '''
-    Check if the monomial does not contain twice the same measurement for a same party.
-    '''
-    seen_measurements = {}
-    for op in ops:
-        if op.player not in seen_measurements:
-            seen_measurements[op.player] = set()
-        if op.question in seen_measurements[op.player]:
-            return False  # same measurement appears twice
-        seen_measurements[op.player].add(op.question)
-    return True
-
 class Hierarchy:
     """
     Class for the implementation of the modified NPA's hierarchy.
@@ -41,9 +28,8 @@ class Hierarchy:
 
         if otherMonomials != None:
             assert(type(otherMonomials) == list)
-            size = max(map(lambda mon: len(mon), otherMonomials))
             self.monomialList += otherMonomials
-            self.monomialList = reduce_monomial_list(self.monomialList, monomialSize=size)
+            self.monomialList = reduce_monomial_list(self.monomialList)
 
         self.n = len(self.monomialList)
         self.variableDict = {}
@@ -78,7 +64,7 @@ class Hierarchy:
                     for _ in range(self.game.nbPlayers - n):
                         monome.append(Operator.identity())
 
-                    if all_compatible(monome):
+                    if not Monomial(monome).isNull():
                         new_monomials.append(Monomial(monome))
 
         # Add and reduce duplicates
@@ -99,18 +85,21 @@ class Hierarchy:
 
         for i, Si in enumerate(self.monomialList):
             for j, Sj in enumerate(self.monomialList):
-                var = Monomial(Si.canonicalRep + Sj.canonicalRep)
+                var = Monomial(list(Si.adjoint) + list(Sj.monome))  # = reverse(w_i) . w_j = w_i^dagger w_j
 
                 if var.isNull():
                     matrix[i][j] = -1
                     continue
-                
-                if var not in self.variableDict:
-                    # If no other element as the same canonical representation has *var*, a new SDP variable will be created.
-                    self.variableDict[var] = variableId
+
+                # Entries are labeled by the Hermitian key: <S> = <S^dagger>, so a moment
+                # and its conjugate (reverse) share a single SDP variable. This is the only
+                # place reverse-identification belongs (cells, not rows).
+                key = var.hermitian_key()
+                if key not in self.variableDict:
+                    self.variableDict[key] = variableId
                     variableId += 1
 
-                matrix[i][j] = self.variableDict[var]
+                matrix[i][j] = self.variableDict[key]
         return matrix
 
     def init_variables(self):

@@ -23,12 +23,17 @@ class Test(unittest.TestCase):
         proba = Monomial(S[3].canonicalRep + S[10].canonicalRep)
         proba3 = Monomial(S[8].canonicalRep + S[10].canonicalRep)
 
-        #Test cannonic form and projection
+        #Test cannonic form and projection. Within a party the operator order is kept
+        #(reverse-identification happens only at the cell level, not on rows).
         self.assertEqual(proba, Monomial([Operator(1, 0, 0), Operator(2, 0, 0), Operator(3, 0, 0), Operator.identity(), Operator.identity(), Operator.identity()]))
-        self.assertEqual(proba3, Monomial([Operator(1, 0, 0), Operator(2, 1, 0), Operator(3, 0, 0), Operator(3, 1, 0), Operator.identity(), Operator.identity()]))
+        self.assertEqual(proba3, Monomial([Operator(1, 0, 0), Operator(2, 1, 0), Operator(3, 1, 0), Operator(3, 0, 0), Operator.identity(), Operator.identity()]))
 
-        #Test symetric
-        self.assertEqual(Monomial(S[13].canonicalRep + S[24].canonicalRep), Monomial(S[24].canonicalRep + S[13].canonicalRep))
+        #Test symetric: a word and its reverse are distinct rows but share a moment-matrix
+        #cell (same hermitian_key, since <S> = <S^dagger>).
+        left = Monomial(S[13].canonicalRep + S[24].canonicalRep)
+        right = Monomial(S[24].canonicalRep + S[13].canonicalRep)
+        self.assertEqual(left.hermitian_key(), right.hermitian_key())
+        self.assertNotEqual(left, right)
         self.assertNotEqual(Monomial(S[2].canonicalRep + S[10].canonicalRep), proba)
 
         #Test Id
@@ -150,12 +155,17 @@ class Test(unittest.TestCase):
         proba = Monomial(S[3].canonicalRep + S[93].canonicalRep)
         proba2 = Monomial(S[93].canonicalRep + S[31].canonicalRep)
 
-        #Test cannonic form and projection
+        #Test cannonic form and projection. Within a party the operator order is kept
+        #(reverse-identification happens only at the cell level, not on rows).
         self.assertEqual(proba, Monomial([Operator(0, 1, 0), Operator(1, 1, 0), Operator(2, 1, 0), Operator.identity(), Operator.identity(), Operator.identity()]))
-        self.assertEqual(proba2, Monomial([Operator(0, 0, 0), Operator(0, 1, 0), Operator(1, 0, 0), Operator(1, 1, 0), Operator(2, 0, 0), Operator(2, 1, 0)]))
+        self.assertEqual(proba2, Monomial([Operator(0, 1, 0), Operator(0, 0, 0), Operator(1, 1, 0), Operator(1, 0, 0), Operator(2, 1, 0), Operator(2, 0, 0)]))
 
-        #Test symetric
-        self.assertEqual(Monomial(S[13].canonicalRep + S[24].canonicalRep), Monomial(S[24].canonicalRep + S[13].canonicalRep))
+        #Test symetric: a word and its reverse are distinct rows but share a moment-matrix
+        #cell (same hermitian_key, since <S> = <S^dagger>).
+        left = Monomial(S[13].canonicalRep + S[24].canonicalRep)
+        right = Monomial(S[24].canonicalRep + S[13].canonicalRep)
+        self.assertEqual(left.hermitian_key(), right.hermitian_key())
+        self.assertNotEqual(left, right)
         self.assertNotEqual(Monomial(S[2].canonicalRep + S[93].canonicalRep), proba)
 
         #Test Id
@@ -299,6 +309,41 @@ class Test(unittest.TestCase):
         NPAchsh = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
         upperBound, X = NPAchsh.compute_NPA(level=3, getVariable=True, Nash=False, verbose=True, warmStart=False, solver="MOSEK")
         self.assertAlmostEqual(upperBound, 2.9149, delta=1e-4)
+
+    def testI3322(self):
+        # Canonical symmetric I3322 Bell inequality (Collins-Gisin form):
+        # classical bound 1, quantum maximum ~1.2509.
+        # outcome "1" -> index 0 ; settings 1,2,3 -> index 0,1,2.
+        # Marginal coeff +1 on P(a=0|x=0) and P(b=0|y=0); joint P(a=0,b=0|x,y) block below.
+        # Marginals are distributed over the 3 settings (valid for no-signalling behaviours).
+        num_players = 2
+        list_num_in = [3, 3]
+        list_num_out = [2, 2]
+        alpha = [1, 0, 0]
+        beta = [1, 0, 0]
+        gamma = [[-1, -1, -1], [-1, -1, 1], [-1, 1, 0]]
+
+        def func_utility(out_tuple, in_tuple):
+            a, b = out_tuple
+            x, y = in_tuple
+            val = 0.0
+            if a == 0:
+                val += alpha[x] / 3.0
+            if b == 0:
+                val += beta[y] / 3.0
+            if a == 0 and b == 0:
+                val += gamma[x][y]
+            return val
+
+        func_in_prior = lambda in_tuple: 1
+
+        NPAi3322 = Game(num_players, list_num_in, list_num_out, [func_utility]*num_players, func_in_prior)
+        upperBound = NPAi3322.compute_NPA(level=3, Nash=False, warmStart=False, solver="SCS")
+        # Valid upper bound strictly above the classical value of 1, matching the known
+        # NPA level-3 bound for I3322 (~1.2509; quantum value ~1.250875, reached slowly).
+        self.assertGreater(upperBound, 1.0)
+        self.assertAlmostEqual(upperBound, 1.2509, delta=5e-4)
+
 
 if __name__ == "__main__":
     unittest.main()
