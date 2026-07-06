@@ -363,3 +363,69 @@ class Game:
                 opt_arr_map = arr_map
                 opt = ave_utility
         return opt, opt_arr_map
+
+    def opt_classical_forward(self, i, j):
+        """
+        Classical optimum for the forwarding game reduce_to_foward(i, j), computed
+        directly without enumerating all deterministic strategies.
+
+        In that game players i and j always receive the same input w, and the third
+        player k receives its own input independently (the prior is 0 off the
+        w_i == w_j diagonal). So, once k's deterministic strategy g_k is fixed, each
+        value of w can be optimized independently: the objective is a sum of
+        per-w terms, each depending only on (a_i, a_j) at that w. We therefore
+
+            max over the (out_k ** n_k) strategies g_k of
+              sum_w max over (a_i, a_j) of
+                sum_{x_k} prior(w, x_k) * payout(a_i, a_j, g_k[x_k]; w, x_k)
+
+        This reuses the reduced game's own func_in_prior / answerPayoutWin, so the
+        value matches reduce_to_foward(i, j).opt_classical() exactly, but costs
+        ~ out_k**n_k * n_w * out_i * out_j * n_k evaluations instead of
+        (out_i**n_w)*(out_j**n_w)*(out_k**n_k) strategy evaluations.
+
+        Returns (opt_value, (g_ij, g_k)) where g_ij maps w -> (a_i, a_j) and g_k is
+        the tuple of player-k outputs indexed by its input.
+        """
+        reduced = self.reduce_to_foward(i, j)
+        if i > j:
+            i, j = j, i
+        k = 3 - i - j
+
+        n_w = reduced.list_num_in[i]          # = n_i * n_j (shared input of i and j)
+        n_k = reduced.list_num_in[k]
+        out_i = reduced.list_num_out[i]
+        out_j = reduced.list_num_out[j]
+        out_k = reduced.list_num_out[k]
+
+        def make_in(w, x_k):
+            t = [0, 0, 0]
+            t[i], t[j], t[k] = w, w, x_k
+            return tuple(t)
+
+        def make_out(a_i, a_j, a_k):
+            t = [0, 0, 0]
+            t[i], t[j], t[k] = a_i, a_j, a_k
+            return tuple(t)
+
+        opt = float("-inf")
+        opt_strategy = None
+        for g_k in it.product(range(out_k), repeat=n_k):
+            total = 0.0
+            g_ij = {}
+            for w in range(n_w):
+                best, best_aij = float("-inf"), None
+                for a_i in range(out_i):
+                    for a_j in range(out_j):
+                        s = 0.0
+                        for x_k in range(n_k):
+                            in_t = make_in(w, x_k)
+                            out_t = make_out(a_i, a_j, g_k[x_k])
+                            s += reduced.func_in_prior(in_t) * reduced.answerPayoutWin(out_t, in_t)
+                        if s > best:
+                            best, best_aij = s, (a_i, a_j)
+                total += best
+                g_ij[w] = best_aij
+            if total > opt:
+                opt, opt_strategy = total, (g_ij, g_k)
+        return opt, opt_strategy

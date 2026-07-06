@@ -51,8 +51,16 @@ def plot_communication_advantage(file_path, save_path='communication_advantage.p
     color_quantum = "#e02b35"        
     color_npa_0 = '#f0c571'           
     color_npa_2 = '#59a89c'   
-    color_npa_3 = "#0400ff"        
+    color_npa_3 = "#0400ff"
     color_algebraic = '#a559aa'
+
+    # Forwarding value omega_f in each latency regime (exact, one point per regime).
+    omega_f_vals = [
+        results['no_comm']['q'],   # t in [0, d/c)
+        results['line_fwd']['q'],  # t in [d/c, 2d/c)
+        results['algebraic'],      # t >= 2d/c
+    ]
+    t_centers = [0.5 * d_c, 1.5 * d_c, (2 * d_c + x_extended) / 2]
 
     # 3. Setup Figure (Large size)
     fig, ax = plt.subplots(figsize=(14, 12))
@@ -100,7 +108,7 @@ def plot_communication_advantage(file_path, save_path='communication_advantage.p
 
         l3, = target_ax.plot([d_c, 2*d_c], [g_sig_line, g_sig_line], 
                          color=color_npa_3, linewidth=2.5, linestyle='-',
-                         label=r"Upper bound on $\omega_q$ (G-sig)" if include_labels else '', 
+                         label=r"Upper bound on $\omega_q$ (G-signalling)" if include_labels else '', 
                          alpha=0.8, zorder=1, solid_capstyle='round')
         l3.set_path_effects([patheffects.withTickedStroke(spacing=25, angle=90, length=0.5)])        
         
@@ -115,17 +123,23 @@ def plot_communication_advantage(file_path, save_path='communication_advantage.p
     # 4. Draw Main Plot
     draw_plots(ax, include_labels=True)
 
+    # Forwarding value omega_f: a little cross in each latency regime (labelled once).
+    for idx, (tc, wf) in enumerate(zip(t_centers, omega_f_vals)):
+        ax.plot(tc, wf, marker='x', markersize=12, linestyle='None',
+                color="#000000", markeredgewidth=2, zorder=6,
+                label=r'Forwarding value $\omega_f$' if idx == 0 else '')
+
     # 6. Main Axes Configuration
     ax.set_ylim(0.6, 1.05) 
     ax.set_xlim([-0.1, x_extended])
-    ax.set_xlabel('Latency constraint $t$', fontsize=23)
-    ax.set_ylabel('Game value', fontsize=23)
+    ax.set_xlabel('Latency constraint $t$', fontsize=27)
+    ax.set_ylabel('Game value', fontsize=27)
     ax.set_xticks([0, d_c, 2*d_c])
-    ax.set_xticklabels(['$0$', r'$\frac{d}{c}$', r'$\frac{2d}{c}$'], fontsize=22)
-    ax.tick_params(axis='both', labelsize=21)
+    ax.set_xticklabels(['$0$', 'd/c', '2d/c'], fontsize=23)
+    ax.tick_params(axis='both', labelsize=25)
     
     # Legend
-    ax.legend(loc='upper left', fontsize=20, framealpha=0.98, 
+    ax.legend(loc='upper left', fontsize=25, framealpha=0.98, 
               edgecolor='gray', fancybox=False, ncol=2)
 
     plt.tight_layout()
@@ -134,7 +148,7 @@ def plot_communication_advantage(file_path, save_path='communication_advantage.p
     plt.show()
 
 if __name__ == "__main__":
-    if os.path.exists('LC_paper/results.pkl'):
-        plot_communication_advantage('LC_paper/results.pkl')
+    if os.path.exists('results.pkl'):
+        plot_communication_advantage('results.pkl')
     else:
         print("Error: 'results.pkl' not found.")

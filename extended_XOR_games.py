@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from LC_seesaw.seesaw import Seesaw
 import networkx as nx
@@ -21,8 +21,8 @@ def function_from_tt(tt, x, y):
     inc = 0
     for i in range(x):
         for j in range(y):
-            inc += 1
             dict_tt[(i,j)] = tt[inc]
+            inc += 1
     return dict_tt
 
 def extended_XOR_game(f, nb_x, nb_y, nb_z, dim_state, dim_message):
@@ -57,13 +57,15 @@ if __name__ == "__main__":
         nb_x = 1
         nb_y = 3
         nb_z = 3
-        tt = np.random.randint(2, size=nb_y*nb_z+1)
-        while binatodeci(tt) in results:
-            tt = np.random.randint(2, size=nb_y*nb_z+1)
+        tt = np.random.randint(2, size=nb_y*nb_z)
+        while binatodeci(tt) in seen_tt:
+            tt = np.random.randint(2, size=nb_y*nb_z)
 
         seen_tt.append(binatodeci(tt))
 
         f = function_from_tt(tt, nb_y, nb_z)
+        print(f"\n=== Iteration {i}/50 | function {tt} (id {binatodeci(tt)}) ===", flush=True)
+        t_iter = time.time()
 
         best_qsw, best_strategy = 0, None
 
@@ -74,24 +76,34 @@ if __name__ == "__main__":
 
         # NPA upper bound for foward strategies, party 0 and party 1 communicate their inputs.
         XORgame = Game(3, [nb_x*nb_y, nb_x*nb_y, nb_z], [2,2,2], [extended_xor]*3, lambda in_tuple: int(in_tuple[0] == in_tuple[1])/(nb_x*nb_y*nb_z))
+        t0 = time.time()
         upperBound = XORgame.compute_NPA(level=2, Nash=False, verbose=False, warmStart=False, solver="MOSEK")
+        print(f"  [NPA level 2]      {time.time()-t0:6.2f}s  -> upperBound={upperBound:.4f}", flush=True)
 
+        t0 = time.time()
         c_value = XORgame.opt_classical()[0]
-        classical_one_way = XORgame.reduce_to_foward(0, 1)
-        c_one_way_value = classical_one_way.opt_classical()[0]
+        print(f"  [classical]        {time.time()-t0:6.2f}s  -> c={c_value:.4f}", flush=True)
+        t0 = time.time()
+        c_one_way_value = XORgame.opt_classical_forward(0, 1)[0]
+        print(f"  [classical 1-way]  {time.time()-t0:6.2f}s  -> c_oneway={c_one_way_value:.4f}", flush=True)
 
         qsw = 0
         trial = 0
-        while trial <= 30 or qsw <= upperBound - 0.1:                        
+        MAX_TRIALS = 200
+        t_seesaw = time.time()
+        while trial <= 30 or (best_qsw <= upperBound - 0.1 and trial <= MAX_TRIALS):
+            t0 = time.time()
             qsw, strategy = extended_XOR_game(f, nb_x, nb_y, nb_z, [1, 2, 2], 2)
             if qsw > best_qsw:
                 best_qsw = qsw
                 best_strategy = strategy
             trial += 1
-            print(qsw)
+            print(f"  [seesaw trial {trial:3d}] {time.time()-t0:6.2f}s  qsw={qsw:.4f}  best={best_qsw:.4f}  (target>{upperBound-0.1:.4f})", flush=True)
+        print(f"  [seesaw total]     {time.time()-t_seesaw:6.2f}s over {trial} trials", flush=True)
+        print(f"  === iteration {i} done in {time.time()-t_iter:6.2f}s ===", flush=True)
 
-        with open(f'./LC_seesaw/data/ExtendedXOR/functionID_{binatodeci(tt)}.dill', "wb") as f:
-            dill.dump(best_strategy, f)
+        with open(f'./LC_seesaw/data/ExtendedXOR/functionID_{binatodeci(tt)}.dill', "wb") as fh:
+            dill.dump(best_strategy, fh)
 
         print(f"Iteration {i} Function: {tt}, classical_value {c_value}, classical value with one-way {c_one_way_value}, Seesaw: {best_qsw}, upper-bound forwarding: {upperBound}, diff: {best_qsw - upperBound}, id: {binatodeci(tt)}")
         results.append({
